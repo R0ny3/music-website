@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block sub_content %}
+<div class="container text-center">
+    <h1>{{blog[0]['title']}}</h1>
+</div>
+<hr>
+<div class="container">
+    <p>{{blog[0]['body'] | safe}}</p>
+</div>
+<hr>
+<div class="container text-left">
+    <p> Written by: {{blog[0]['author']}}</p>
+</div>
+{% endblock %}
