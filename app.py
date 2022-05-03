@@ -1,4 +1,5 @@
 # Package imports
+from unittest import result
 import pymysql
 pymysql.install_as_MySQLdb()
 from flask import Flask, render_template, request, redirect, session, flash
@@ -50,6 +51,18 @@ def register():
             flash('Passwords do not match! Try again.', 'danger')
             return render_template('register.html')
         cur = mysql.connection.cursor()
+        checkUsername = cur.execute("SELECT * FROM user WHERE username = %s", ([userDetails['username']]))
+        checkEmail = cur.execute("SELECT * FROM user WHERE email = %s", ([userDetails['email']]))
+        if checkUsername > 0:
+            flash('Username already taken! Try again.', 'danger')
+            return render_template('register.html')
+        if checkEmail > 0:
+            flash('Email already taken! Try again.', 'danger')
+            return render_template('register.html')
+        if '' in [userDetails['first_name'], userDetails['last_name'], userDetails['username'],
+        userDetails['email'], userDetails['password'], userDetails['confirm_password']]:
+            flash('Please fill in required fields!', 'danger')
+            return render_template('register.html')
         cur.execute("INSERT INTO user(first_name, last_name, username, email, password) "\
         "VALUES(%s,%s,%s,%s,%s)",(userDetails['first_name'], userDetails['last_name'], \
         userDetails['username'], userDetails['email'], userDetails['password']))
@@ -75,6 +88,7 @@ def login():
                 session['firstName'] = user['first_name']
                 session['lastName'] = user['last_name']
                 session['user_id'] = user['user_id']
+                session['username'] = user['username']
                 flash('Welcome ' + session['firstName'] +'! You have been successfully logged in', 'success')
             else:
                 cur.close()
@@ -104,10 +118,13 @@ def write_blog():
         blogpost = request.form
         title = blogpost['title']
         body = blogpost['body']
+        artist = blogpost['artist']
+        rating = blogpost['rating']
         author = session['firstName'] + ' ' + session['lastName']
         user_id = session['user_id']
+        username = session['username']
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO blog(user_id, title, body, author) VALUES(%s, %s, %s, %s)", (user_id, title, body, author))
+        cur.execute("INSERT INTO blog(user_id, title, body, author, username, artist, rating) VALUES(%s, %s, %s, %s, %s, %s, %s)", (user_id, title, body, author, username, artist, rating))
         mysql.connection.commit()
         cur.close()
         flash("Successfully posted new blog", 'success')
@@ -126,6 +143,19 @@ def view_blogs():
         return render_template('my-blogs.html',my_blogs=my_blogs)
     else:
         return render_template('my-blogs.html',my_blogs=None)
+
+
+# View my blog (edit mode)
+@app.route('/my-blogs-edit-mode/')
+def view_blogs_edit_mode():
+    user_id = session['user_id']
+    cur = mysql.connection.cursor()
+    result_value = cur.execute("SELECT * FROM blog WHERE user_id = {}".format(user_id))
+    if result_value > 0:
+        my_blogs = cur.fetchall()
+        return render_template('my-blogs-edit-mode.html',my_blogs=my_blogs)
+    else:
+        return render_template('my-blogs-edit-mode.html',my_blogs=None)
 
 
 # Edit blog
@@ -174,21 +204,41 @@ def view_blog(id):
 def search():
     if request.method == 'POST':
         blogpost = request.form
-        user_id = blogpost['username']
-        cur = mysql.connection.cursor()
-        mysql.connection.commit()
-        cur.close()
-        return redirect('/user-blogs/{}'.format(user_id))
+        username = blogpost['username']
+        # cur = mysql.connection.cursor()
+        # mysql.connection.commit()
+        # cur.close()
+        return redirect('/user-blogs/{}'.format(username))
     return render_template('search.html')
 
 
 # View any users blogs
-@app.route('/user-blogs/<int:id>')
-def user_blogs(id):
+@app.route('/user-blogs/<username>')
+def user_blogs(username):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM blog WHERE user_id = {}".format(id))
+    cur.execute("SELECT * FROM blog WHERE username = %s", ([username]))
     blogs = cur.fetchall()
     return render_template('user-blogs.html', blogs=blogs)
+
+
+# View others profile - in progress
+
+
+# Profile - in progress
+@app.route('/my-profile/')
+def my_profile():
+    author = session['firstName'] + ' ' + session['lastName']
+    return render_template('my-profile.html', author=author)
+
+
+# Delete profile - in progress
+@app.route('/delete-profile/')
+def delete_profile():
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM blog WHERE user_id = {}".format(session['user_id']))
+    mysql.connection.commit()
+    flash("Your profile has been deleted", 'success')
+    return redirect('/')
 
 
 # Main
