@@ -1,15 +1,26 @@
 {% extends "layout.html" %}
 
 {% block sub_content %}
-  {% if blogs %}
-    <table cellpadding="5" >
-    {% for blog in blogs %}
-      <tr>
-        <td style="padding:0 15px;"> <h3> <a href="/blogs/{{ blog['blog_id'] }}">{{blog['title']}} </a> </h3></td>
-      </tr>
-    {% endfor %}
-    </table>
-  {% else %}
-    <h3>No blogs have been written by you</h3>
-  {% endif %}
+
+<div class="text-center">
+  <h1>
+    {{name['first_name']}} {{name['last_name']}}'s reviews
+  </h1>
+</div>
+
+{% if blogs %}
+
+{% for blog in blogs %}
+<h3 style="padding-left: 20px"> <a href="/blogs/{{ blog['blog_id'] }}">{{blog['title']}} - {{blog['artist']}}</a>
+  ({{blog['rating']}}/10)</h3>
+<h5 style="padding-left: 20px">Written by {{blog['author']}}</h5>
+
+<hr>
+{% endfor %}
+
+{% else %}
+<h3>No blogs have been written by you</h3>
+
+{% endif %}
+
 {% endblock %}
