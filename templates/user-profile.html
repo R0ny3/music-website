@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block sub_content %}
 <div class="text-center">
-    <h1>{{author}}'s page</h1>
+    <h1>{{name['first_name']}} {{name['last_name']}}'s page</h1>
 </div>
 
 <div style="padding-left: 30px">
@@ -9,11 +9,7 @@
 </div>
 
 <div style="padding-left: 30px">
-    <h3> <a href="/my-blogs/">View {{author}}'s reviews</a> </h3>
-</div>
-
-<div style="padding-left: 30px">
-    <a href="/delete-profile/" class="btn btn-danger">Delete profile</a>
+    <h3> <a href="/user-blogs/{{username}}">View {{name['first_name']}} {{name['last_name']}}'s reviews</a> </h3>
 </div>
 
 {% endblock %}

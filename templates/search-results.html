@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block sub_content %}
+
+<div class="text-center">
+    <h1>Search results</h1>
+</div>
+
+  {% if users %}
+
+    {% for user in users %}
+    <div style="padding-left: 20px">
+        <h3><a href="/user-profile/{{user['username']}}">{{user['username']}}</a></h3>
+    </div>
+      <hr>
+    {% endfor %}
+
+  {% else %}
+    <h3>No users were found</h3>
+
+  {% endif %}
+
+{% endblock %}

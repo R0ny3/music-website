@@ -7,6 +7,7 @@ from flask_bootstrap import Bootstrap
 from flask_mysqldb import MySQL
 from flask_ckeditor import CKEditor
 import yaml
+import base64
 
 
 # Initialize app
@@ -31,7 +32,7 @@ app.config['SECRET_KEY'] = 'secret'
 @app.route('/')
 def index():
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM blog")
+    cur.execute("SELECT * FROM blog ORDER BY blog_id DESC")
     all_blogs = cur.fetchall()
     return render_template('index.html', all_blogs=all_blogs)
 
@@ -63,9 +64,13 @@ def register():
         userDetails['email'], userDetails['password'], userDetails['confirm_password']]:
             flash('Please fill in required fields!', 'danger')
             return render_template('register.html')
+
+        password = userDetails['password'].encode("utf-8")
+        encoded = base64.b64encode(password)
+
         cur.execute("INSERT INTO user(first_name, last_name, username, email, password) "\
         "VALUES(%s,%s,%s,%s,%s)",(userDetails['first_name'], userDetails['last_name'], \
-        userDetails['username'], userDetails['email'], userDetails['password']))
+        userDetails['username'], userDetails['email'], encoded))
         mysql.connection.commit()
         cur.close()
         flash('Registration successful! Please login.', 'success')
@@ -83,7 +88,10 @@ def login():
         resultValue = cur.execute("SELECT * FROM user WHERE username = %s", ([username]))
         if resultValue > 0:
             user = cur.fetchone()
-            if userDetails['password'] == user['password']:
+            password = userDetails['password'].encode("utf-8")
+            encoded = base64.b64encode(password)
+            decoded = encoded.decode("utf-8") 
+            if decoded == user['password']:
                 session['login'] = True
                 session['firstName'] = user['first_name']
                 session['lastName'] = user['last_name']
@@ -92,7 +100,7 @@ def login():
                 flash('Welcome ' + session['firstName'] +'! You have been successfully logged in', 'success')
             else:
                 cur.close()
-                flash('Password does not match', 'danger')
+                flash('Your password is incorrect', 'danger')
                 return render_template('login.html')
         else:
             cur.close()
@@ -123,12 +131,16 @@ def write_blog():
         author = session['firstName'] + ' ' + session['lastName']
         user_id = session['user_id']
         username = session['username']
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO blog(user_id, title, body, author, username, artist, rating) VALUES(%s, %s, %s, %s, %s, %s, %s)", (user_id, title, body, author, username, artist, rating))
-        mysql.connection.commit()
-        cur.close()
-        flash("Successfully posted new blog", 'success')
-        return redirect('/')
+        if '' in [title, artist, rating]:
+            flash('Please fill in all required fields', 'danger')
+            return redirect('/write-blog/')
+        else:
+            cur = mysql.connection.cursor()
+            cur.execute("INSERT INTO blog(user_id, title, body, author, username, artist, rating) VALUES(%s, %s, %s, %s, %s, %s, %s)", (user_id, title, body, author, username, artist, rating))
+            mysql.connection.commit()
+            cur.close()
+            flash('Successfully posted new blog', 'success')
+            return redirect('/')
     return render_template('write-blog.html')
 
 
@@ -137,7 +149,7 @@ def write_blog():
 def view_blogs():
     user_id = session['user_id']
     cur = mysql.connection.cursor()
-    result_value = cur.execute("SELECT * FROM blog WHERE user_id = {}".format(user_id))
+    result_value = cur.execute("SELECT * FROM blog WHERE user_id = {} ORDER BY blog_id DESC".format(user_id))
     if result_value > 0:
         my_blogs = cur.fetchall()
         return render_template('my-blogs.html',my_blogs=my_blogs)
@@ -150,7 +162,7 @@ def view_blogs():
 def view_blogs_edit_mode():
     user_id = session['user_id']
     cur = mysql.connection.cursor()
-    result_value = cur.execute("SELECT * FROM blog WHERE user_id = {}".format(user_id))
+    result_value = cur.execute("SELECT * FROM blog WHERE user_id = {} ORDER BY blog_id DESC".format(user_id))
     if result_value > 0:
         my_blogs = cur.fetchall()
         return render_template('my-blogs-edit-mode.html',my_blogs=my_blogs)
@@ -205,38 +217,65 @@ def search():
     if request.method == 'POST':
         blogpost = request.form
         username = blogpost['username']
-        # cur = mysql.connection.cursor()
-        # mysql.connection.commit()
-        # cur.close()
-        return redirect('/user-blogs/{}'.format(username))
+        return redirect('/search/{}'.format(username))
     return render_template('search.html')
+
+
+# Search results
+@app.route('/search/<username>')
+def search_results(username):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM user WHERE username LIKE '%{}%'".format(username))
+    users = cur.fetchall()
+    if len(users) == 0:
+        flash('User not found! Please refine your search.', 'info')
+        return redirect('/search')
+    else:
+        return render_template('search-results.html', users=users)
 
 
 # View any users blogs
 @app.route('/user-blogs/<username>')
 def user_blogs(username):
     cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM blog WHERE username = %s ORDER BY blog_id DESC", ([username]))
+    blogs = cur.fetchall()
+    cur.execute("SELECT * FROM user WHERE username = %s", ([username]))
+    name = cur.fetchone()
+    return render_template('user-blogs.html', blogs=blogs, name=name)
+
+
+# Others profile
+@app.route('/user-profile/<username>')
+def user_profile(username):
+    cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM blog WHERE username = %s", ([username]))
     blogs = cur.fetchall()
-    return render_template('user-blogs.html', blogs=blogs)
+    num_of_blogs = len(blogs)
+    cur.execute("SELECT * FROM user WHERE username = %s", ([username]))
+    name = cur.fetchone()
+    return render_template('user-profile.html', num_of_blogs=num_of_blogs, name=name, username=username)
 
 
-# View others profile - in progress
-
-
-# Profile - in progress
+# My profile
 @app.route('/my-profile/')
 def my_profile():
     author = session['firstName'] + ' ' + session['lastName']
-    return render_template('my-profile.html', author=author)
+    user_id = session['user_id']
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM blog WHERE user_id = {}".format(user_id))
+    blogs = cur.fetchall()
+    num_of_blogs = len(blogs)
+    return render_template('my-profile.html', author=author, num_of_blogs=num_of_blogs)
 
 
-# Delete profile - in progress
+# Delete profile
 @app.route('/delete-profile/')
 def delete_profile():
     cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM blog WHERE user_id = {}".format(session['user_id']))
+    cur.execute("DELETE FROM user WHERE user_id = {}".format(session['user_id']))
     mysql.connection.commit()
+    session.clear()
     flash("Your profile has been deleted", 'success')
     return redirect('/')
 
