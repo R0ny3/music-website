@@ -4,7 +4,11 @@
 
 <div class="text-center">
   <h1>
-    {{name['first_name']}} {{name['last_name']}}'s reviews
+    {% if endswith_s %}
+      {{name['first_name']}} {{name['last_name']}}' reviews
+    {% else %}
+      {{name['first_name']}} {{name['last_name']}}'s reviews
+    {% endif %}
   </h1>
 </div>
 
@@ -19,7 +23,7 @@
 {% endfor %}
 
 {% else %}
-<h3>No blogs have been written by you</h3>
+<h3 style="padding-left: 20px">No blogs have been written by {{name['first_name']}} {{name['last_name']}}</h3>
 
 {% endif %}
 

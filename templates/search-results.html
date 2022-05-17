@@ -6,18 +6,36 @@
     <h1>Search results</h1>
 </div>
 
-  {% if users %}
-
-    {% for user in users %}
-    <div style="padding-left: 20px">
-        <h3><a href="/user-profile/{{user['username']}}">{{user['username']}}</a></h3>
+<form class="form-horizontal" method="POST">
+    <div class="form-group">
+      <label class="control-label col-sm-2">Username</label>
+      <div class="col-sm-5">
+        <input type="text" name="username" />
+      </div>
+      <div class="col-sm-offset-9">
+        <a href="/search/all-users" class="btn btn-primary">View all users</a>
+      </div>
     </div>
-      <hr>
-    {% endfor %}
+  
+    <div class="form-group">
+      <div class="col-sm-offset-2 col-sm-10">
+        <button type="Submit">Submit </button>
+      </div>
+    </div>
+  </form>
 
-  {% else %}
-    <h3>No users were found</h3>
+{% if users %}
 
-  {% endif %}
+{% for user in users %}
+<div style="padding-left: 20px">
+    <h3><a href="/user-profile/{{user['username']}}">{{user['username']}}</a></h3>
+</div>
+<hr>
+{% endfor %}
+
+{% else %}
+<h3>No users were found</h3>
+
+{% endif %}
 
 {% endblock %}

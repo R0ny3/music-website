@@ -64,10 +64,8 @@ def register():
         userDetails['email'], userDetails['password'], userDetails['confirm_password']]:
             flash('Please fill in required fields!', 'danger')
             return render_template('register.html')
-
         password = userDetails['password'].encode("utf-8")
         encoded = base64.b64encode(password)
-
         cur.execute("INSERT INTO user(first_name, last_name, username, email, password) "\
         "VALUES(%s,%s,%s,%s,%s)",(userDetails['first_name'], userDetails['last_name'], \
         userDetails['username'], userDetails['email'], encoded))
@@ -90,7 +88,7 @@ def login():
             user = cur.fetchone()
             password = userDetails['password'].encode("utf-8")
             encoded = base64.b64encode(password)
-            decoded = encoded.decode("utf-8") 
+            decoded = encoded.decode("utf-8")
             if decoded == user['password']:
                 session['login'] = True
                 session['firstName'] = user['first_name']
@@ -177,7 +175,9 @@ def edit_blog(id):
         cur = mysql.connection.cursor()
         title = request.form['title']
         body = request.form['body']
-        cur.execute("UPDATE blog SET title = %s, body = %s where blog_id = %s",(title, body, id))
+        artist = request.form['artist']
+        rating = request.form['rating']
+        cur.execute("UPDATE blog SET title = %s, body = %s, artist = %s, rating = %s  where blog_id = %s",(title, body, body, rating, id))
         mysql.connection.commit()
         cur.close()
         flash('Blog updated successfully', 'success')
@@ -212,7 +212,7 @@ def view_blog(id):
 
 
 # Search for a user
-@app.route('/search/',methods=['GET', 'POST'])
+@app.route('/search/', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
         blogpost = request.form
@@ -222,11 +222,19 @@ def search():
 
 
 # Search results
-@app.route('/search/<username>')
+@app.route('/search/<username>', methods=['GET', 'POST'])
 def search_results(username):
+    if request.method == 'POST':
+        blogpost = request.form
+        username = blogpost['username']
+        return redirect('/search/{}'.format(username))
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM user WHERE username LIKE '%{}%'".format(username))
-    users = cur.fetchall()
+    if username == 'all-users':
+        cur.execute("SELECT * FROM user")
+        users = cur.fetchall()
+    else:
+        cur.execute("SELECT * FROM user WHERE username LIKE '%{}%'".format(username))
+        users = cur.fetchall()
     if len(users) == 0:
         flash('User not found! Please refine your search.', 'info')
         return redirect('/search')
@@ -242,7 +250,8 @@ def user_blogs(username):
     blogs = cur.fetchall()
     cur.execute("SELECT * FROM user WHERE username = %s", ([username]))
     name = cur.fetchone()
-    return render_template('user-blogs.html', blogs=blogs, name=name)
+    endswith_s = name['last_name'].endswith('s')
+    return render_template('user-blogs.html', blogs=blogs, name=name, endswith_s=endswith_s)
 
 
 # Others profile
@@ -270,14 +279,31 @@ def my_profile():
 
 
 # Delete profile
-@app.route('/delete-profile/')
+@app.route('/delete-profile/', methods=['GET', 'POST'])
 def delete_profile():
-    cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM user WHERE user_id = {}".format(session['user_id']))
-    mysql.connection.commit()
-    session.clear()
-    flash("Your profile has been deleted", 'success')
-    return redirect('/')
+    if session['login'] == True:
+        if request.method == 'POST':
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT * FROM user WHERE username = %s", ([session['username']]))
+            userDetails = cur.fetchone()
+            form = request.form
+            password = form['password'].encode("utf-8")
+            encoded = base64.b64encode(password)
+            decoded = encoded.decode("utf-8") 
+            if decoded == userDetails['password']:
+                cur = mysql.connection.cursor()
+                cur.execute("DELETE FROM user WHERE user_id = {}".format(session['user_id']))
+                cur.execute("DELETE FROM blog WHERE user_id = {}".format(session['user_id']))
+                mysql.connection.commit()
+                session.clear()
+                flash("Your profile has been deleted", 'success')
+                return redirect('/')
+            else:
+                flash('Password is incorrect. Please try again', 'danger')
+    else:
+        flash('Please login to delete your profile', 'danger')
+        redirect('/')
+    return render_template('delete-profile.html')
 
 
 # Main
